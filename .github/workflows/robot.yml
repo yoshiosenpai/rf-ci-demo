@@ -1,0 +1,49 @@
+name: Robot Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  robot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
+
+      - name: Run Robot Tests (headless)
+        env:
+          ROBOT_BROWSER: Chrome
+        run: |
+          # Headless: pass an argument to Chrome via SeleniumLibrary
+          # We’ll set an env var and map it to Robot variable if needed.
+          # Quick trick: use options by exposing a variable Robot reads.
+          echo "*** Settings ***" > custom.robot
+          echo "Library    SeleniumLibrary    options=add_argument(--headless=new)" >> custom.robot
+          # Run with our tests; Robot merges settings in alphabetical order if imported first
+          robot --outputdir results -P . tests
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results
+          path: results
